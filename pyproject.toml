@@ -1,0 +1,29 @@
+[project]
+name = "wide-awake"
+version = "0.1.0"
+description = "macOS Menu Bar Sleep Toggle"
+readme = "README.md"
+authors = [
+    { name = "boonhapus", email = "me@boonhap.us" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "rumps",
+    # "py2app",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.0,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.py2app]
+app = ["wide_awake.py"]
+alias = false
+argv_emulation = true
+
+[tool.py2app.plist]
+LSUIElement = true
+CFBundleName = "WideAwake"
+CFBundleDisplayName = "WideAwake"
+CFBundleIdentifier = "com.user.wideawake"
+CFBundleShortVersionString = "1.0.0"
