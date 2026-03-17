@@ -147,10 +147,5 @@ if __name__ == "__main__":
         ]
     )
 
-    try:
-        LOGGER.info("starting WideAwake")
-        WideAwake().run()
-    except KeyboardInterrupt:
-        LOGGER.warning("User cancelled WideAwake from the terminal.")
-    finally:
-        LOGGER.info("stopped WideAwake")
+    LOGGER.info("starting WideAwake")
+    WideAwake().run()
