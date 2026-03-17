@@ -2,6 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["cyclopts"]
 # ///
+import os
 import pathlib
 import shutil
 import subprocess
@@ -33,19 +34,31 @@ PLIST_XML = f"""
 app = cyclopts.App(name="WideAwake Setup", help="Manage the WideAwake launchd service.")
 
 
+def _gui_domain() -> str:
+    """Return the launchd GUI domain for the real user (even under sudo)."""
+    uid = os.environ.get("SUDO_UID") or str(os.getuid())
+    return f"gui/{uid}"
+
+
 @app.command
 def install() -> None:
     """Install and load the WideAwake launchd plist."""
     PLIST.parent.mkdir(parents=True, exist_ok=True)
     PLIST.write_text(PLIST_XML)
-    subprocess.run(["launchctl", "load", str(PLIST)], check=True)
+    subprocess.run(
+        ["launchctl", "bootstrap", _gui_domain(), str(PLIST)],
+        check=True,
+    )
     print(f"✓ installed {PLIST}")
 
 
 @app.command
 def uninstall() -> None:
     """Unload and remove the WideAwake launchd plist."""
-    subprocess.run(["launchctl", "unload", str(PLIST)], check=False)
+    subprocess.run(
+        ["launchctl", "bootout", f"{_gui_domain()}/{LABEL}"],
+        check=False,
+    )
     PLIST.unlink(missing_ok=True)
     print(f"✓ removed {PLIST}")
 
