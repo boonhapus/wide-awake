@@ -1,6 +1,6 @@
 # WideAwake 😃
 
-A lightweight macOS menu bar app that prevents your system from going to sleep — no more wiggling the mouse during long downloads, presentations, or remote sessions.
+A lightweight macOS menu bar app that prevents your system from going to sleep - no more wiggling the mouse during long downloads, presentations, or remote sessions.
 
 ## What it does
 
@@ -29,14 +29,17 @@ WideAwake polls `pmset -g` every 5 seconds to reflect the true system state, and
 > [!NOTE]
 > This project uses `uv` for dependency management and running scripts. If you don't have it, install it with `curl -LsSf https://astral.sh/uv/install.sh | sh` or see the [uv docs](https://docs.astral.sh/uv/).
 
-## Usage
+## Getting Started
 
+Try it out
 ```bash
-uv run wideawake.py
+uv run https://raw.githubusercontent.com/boonhapus/wide-awake/main/src/wide_awake/awake.py
 ```
 
 To manage the app (configure as a launch agent):
 
 ```bash
+git clone https://github.com/boonhapus/wide-awake.git
+cd wide-awake
 uv run .scripts/setup.py --help
 ```
