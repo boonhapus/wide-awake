@@ -27,7 +27,9 @@ Toggling sleep requires administrator privileges; macOS will prompt you automati
 WideAwake polls `pmset -g` every 5 seconds to reflect the true system state, and uses AppleScript (`osascript`) to run `pmset -a disablesleep` with elevated privileges when toggling.
 
 > [!NOTE]
-> This project uses `uv` for dependency management and running scripts. If you don't have it, install it with `curl -LsSf https://astral.sh/uv/install.sh | sh` or see the [uv docs](https://docs.astral.sh/uv/).
+> This project uses `uv` for dependency management and running scripts.
+>
+> Get it with `curl -LsSf https://astral.sh/uv/install.sh | sh` or see the [uv docs](https://docs.astral.sh/uv/).
 
 ## Getting Started
 
