@@ -40,9 +40,19 @@ def _gui_domain() -> str:
     return f"gui/{uid}"
 
 
+def _bootout() -> None:
+    """Remove any existing launchd registration, ignoring errors."""
+    subprocess.run(
+        ["launchctl", "bootout", f"{_gui_domain()}/{LABEL}"],
+        check=False,
+        capture_output=True,
+    )
+
+
 @app.command
 def install() -> None:
     """Install and load the WideAwake launchd plist."""
+    _bootout()
     PLIST.parent.mkdir(parents=True, exist_ok=True)
     PLIST.write_text(PLIST_XML)
     subprocess.run(
@@ -55,10 +65,7 @@ def install() -> None:
 @app.command
 def uninstall() -> None:
     """Unload and remove the WideAwake launchd plist."""
-    subprocess.run(
-        ["launchctl", "bootout", f"{_gui_domain()}/{LABEL}"],
-        check=False,
-    )
+    _bootout()
     PLIST.unlink(missing_ok=True)
     print(f"✓ removed {PLIST}")
 
