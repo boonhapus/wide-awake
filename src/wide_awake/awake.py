@@ -16,6 +16,7 @@ Manage with..
 # ///
 from dataclasses import dataclass
 import os
+import re
 import subprocess
 import sys
 
@@ -103,7 +104,7 @@ class WideAwake(rumps.App):
     @property
     def sleep_disabled(self) -> bool:
         """True when pmset has disablesleep active."""
-        result = "disablesleep 1" in query_pmset()
+        result = bool(re.search(r"SleepDisabled\s+1", query_pmset()))
         LOGGER.debug("checked sleep state", sleep_disabled=result)
         return result
 
