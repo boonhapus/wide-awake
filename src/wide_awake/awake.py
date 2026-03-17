@@ -11,6 +11,7 @@ Manage with..
 # requires-python = ">=3.12"
 # dependencies = [
 #   "rumps",
+#   "structlog",
 # ]
 # ///
 from dataclasses import dataclass
@@ -19,7 +20,10 @@ import subprocess
 import sys
 
 import rumps
+import structlog
 
+
+LOGGER = structlog.get_logger()
 
 # ── State configuration ────────────────────────────────────────────────────────
 
@@ -48,15 +52,26 @@ ASLEEP = SleepState(
 def get_app_path() -> str:
     """Return the .app bundle path, or the running script path as a fallback."""
     if ".app/Contents/MacOS" in sys.executable:
-        return sys.executable.split(".app/")[0] + ".app"
-    return os.path.abspath(sys.argv[0])
+        path = sys.executable.split(".app/")[0] + ".app"
+        LOGGER.debug("resolved app bundle path", path=path)
+        return path
+    path = os.path.abspath(sys.argv[0])
+    LOGGER.debug("resolved script path fallback", path=path)
+    return path
 
 
 def run_applescript(script: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+    LOGGER.debug("running applescript", script=script)
+    result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+    if result.returncode != 0:
+        LOGGER.warning("applescript failed", returncode=result.returncode, stderr=result.stderr.strip())
+    else:
+        LOGGER.debug("applescript succeeded")
+    return result
 
 
 def query_pmset() -> str:
+    LOGGER.debug("querying pmset")
     return subprocess.getoutput("pmset -g")
 
 
@@ -67,6 +82,7 @@ class WideAwake(rumps.App):
 
     def __init__(self) -> None:
         super().__init__("WideAwake", quit_button=None)
+        LOGGER.info("initialising WideAwake app")
 
         self.status_item = rumps.MenuItem("", callback=None)
         self.toggle_item = rumps.MenuItem("", callback=self.on_toggle)
@@ -81,6 +97,7 @@ class WideAwake(rumps.App):
 
         self.timer = rumps.Timer(self.refresh_ui, self.REFRESH_INTERVAL)
         self.timer.start()
+        LOGGER.info("refresh timer started", interval_seconds=self.REFRESH_INTERVAL)
         self.refresh_ui(None)
 
     # ── Queries ────────────────────────────────────────────────────────────────
@@ -88,11 +105,15 @@ class WideAwake(rumps.App):
     @property
     def sleep_disabled(self) -> bool:
         """True when pmset has disablesleep active."""
-        return "disablesleep 1" in query_pmset()
+        result = "disablesleep 1" in query_pmset()
+        LOGGER.debug("checked sleep state", sleep_disabled=result)
+        return result
 
     @property
     def current_state(self) -> SleepState:
-        return AWAKE if self.sleep_disabled else ASLEEP
+        state = AWAKE if self.sleep_disabled else ASLEEP
+        LOGGER.debug("current state", state=state.status_label)
+        return state
 
     # ── UI ─────────────────────────────────────────────────────────────────────
 
@@ -102,17 +123,33 @@ class WideAwake(rumps.App):
         self.title = state.icon
         self.status_item.title = state.status_label
         self.toggle_item.title = state.toggle_label
+        LOGGER.debug("ui refreshed", icon=state.icon, status=state.status_label)
 
     # ── Callbacks ──────────────────────────────────────────────────────────────
 
     def on_toggle(self, _: rumps.MenuItem) -> None:
         """Toggle sleep prevention via AppleScript (triggers macOS auth prompt)."""
-        new_val = "0" if self.sleep_disabled else "1"
-        script  = f'do shell script "pmset -a disablesleep {new_val}" with administrator privileges'
+        currently_disabled = self.sleep_disabled
+        new_val = "0" if currently_disabled else "1"
+        LOGGER.info("toggling sleep prevention", current_sleep_disabled=currently_disabled, new_value=new_val)
+
+        script = f'do shell script "pmset -a disablesleep {new_val}" with administrator privileges'
 
         if run_applescript(script).returncode == 0:
+            LOGGER.info("sleep prevention toggled successfully", sleep_disabled=not currently_disabled)
             self.refresh_ui(None)
+        else:
+            LOGGER.error("failed to toggle sleep prevention", new_value=new_val)
 
 
 if __name__ == "__main__":
+    structlog.configure(
+        processors=[
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.dev.ConsoleRenderer(),
+        ]
+    )
+
+    LOGGER.info("starting WideAwake")
     WideAwake().run()
+    LOGGER.info("stopped WideAwake")
