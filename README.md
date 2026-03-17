@@ -18,9 +18,9 @@ Click the icon to see the current state and switch between **Wide Awake** (sleep
 <img src="docs/awake.png" width="320" alt="Wide Awake state"/>
 <img src="docs/resting.png" width="320" alt="Resting state"/>
 
-</div>
+_Toggling sleep requires administrator privileges; macOS will prompt you automatically._
 
-Toggling sleep requires administrator privileges; macOS will prompt you automatically.
+</div>
 
 ## How it works
 
