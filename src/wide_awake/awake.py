@@ -97,8 +97,6 @@ class WideAwake(rumps.App):
 
         self.timer = rumps.Timer(self.refresh_ui, self.REFRESH_INTERVAL)
         self.timer.start()
-        LOGGER.info("refresh timer started", interval_seconds=self.REFRESH_INTERVAL)
-        self.refresh_ui(None)
 
     # ── Queries ────────────────────────────────────────────────────────────────
 
@@ -109,17 +107,15 @@ class WideAwake(rumps.App):
         LOGGER.debug("checked sleep state", sleep_disabled=result)
         return result
 
-    @property
-    def current_state(self) -> SleepState:
-        state = AWAKE if self.sleep_disabled else ASLEEP
-        LOGGER.debug("current state", state=state.status_label)
-        return state
-
     # ── UI ─────────────────────────────────────────────────────────────────────
 
     def refresh_ui(self, _: rumps.Timer | None) -> None:
         """Sync menu bar icon and labels with the current system state."""
-        state = self.current_state
+        # Read once, use everywhere
+        is_disabled = self.sleep_disabled
+        state = AWAKE if is_disabled else ASLEEP
+        LOGGER.debug("current state", state=state.status_label)
+
         self.title = state.icon
         self.status_item.title = state.status_label
         self.toggle_item.title = state.toggle_label
@@ -150,6 +146,10 @@ if __name__ == "__main__":
         ]
     )
 
-    LOGGER.info("starting WideAwake")
-    WideAwake().run()
-    LOGGER.info("stopped WideAwake")
+    try:
+        LOGGER.info("starting WideAwake")
+        WideAwake().run()
+    except KeyboardInterrupt:
+        LOGGER.warning("User cancelled WideAwake from the terminal.")
+    finally:
+        LOGGER.info("stopped WideAwake")
