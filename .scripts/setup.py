@@ -53,12 +53,15 @@ def _bootout() -> None:
 def install() -> None:
     """Install and load the WideAwake launchd plist."""
     _bootout()
+
     PLIST.parent.mkdir(parents=True, exist_ok=True)
     PLIST.write_text(PLIST_XML)
+
     subprocess.run(
         ["launchctl", "bootstrap", _gui_domain(), str(PLIST)],
         check=True,
     )
+
     print(f"✓ installed {PLIST}")
 
 
@@ -66,7 +69,9 @@ def install() -> None:
 def uninstall() -> None:
     """Unload and remove the WideAwake launchd plist."""
     _bootout()
+
     PLIST.unlink(missing_ok=True)
+
     print(f"✓ removed {PLIST}")
 
 

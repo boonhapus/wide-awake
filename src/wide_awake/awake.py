@@ -15,8 +15,8 @@ Manage with..
 # ]
 # ///
 from dataclasses import dataclass
-import os
 import re
+import pathlib
 import subprocess
 import sys
 
@@ -50,25 +50,32 @@ ASLEEP = SleepState(
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def get_app_path() -> str:
+def get_app_path() -> pathlib.Path:
     """Return the .app bundle path, or the running script path as a fallback."""
-    if ".app/Contents/MacOS" in sys.executable:
-        path = sys.executable.split(".app/")[0] + ".app"
-        LOGGER.debug("resolved app bundle path", path=path)
-        return path
-    path = os.path.abspath(sys.argv[0])
-    LOGGER.debug("resolved script path fallback", path=path)
-    return path
+    executable_path = pathlib.Path(sys.executable)
+
+    # Check if we are running inside a macOS .app bundle
+    if app_path := next((p for p in executable_path.parents if p.suffix == "app"), None):
+        LOGGER.debug("resolved app bundle path", path=app_path)
+        return app_path
+
+    # Fallback to the script's absolute path
+    app_path = pathlib.Path(sys.argv[0]).resolve()
+
+    LOGGER.debug("resolved script path fallback", path=app_path)
+    return app_path
 
 
 def run_applescript(script: str) -> subprocess.CompletedProcess[str]:
     LOGGER.debug("running applescript", script=script)
-    result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
-    if result.returncode != 0:
-        LOGGER.warning("applescript failed", returncode=result.returncode, stderr=result.stderr.strip())
+    r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+
+    if r.returncode != 0:
+        LOGGER.warning("applescript failed", returncode=r.returncode, stderr=r.stderr.strip())
     else:
         LOGGER.debug("applescript succeeded")
-    return result
+
+    return r
 
 
 def query_pmset() -> str:
@@ -79,11 +86,17 @@ def query_pmset() -> str:
 # ── App ────────────────────────────────────────────────────────────────────────
 
 class WideAwake(rumps.App):
+    """
+    A macOS menu bar application that manages system-wide sleep prevention.
+
+    Note:
+        Changing the sleep state requires root privileges; we use AppleScript
+        to trigger a standard macOS administrator authentication prompt.
+    """
     REFRESH_INTERVAL: int = 5
 
     def __init__(self) -> None:
-        super().__init__("WideAwake", quit_button=None)
-        LOGGER.info("initialising WideAwake app")
+        super().__init__(name="WideAwake", quit_button=None)
 
         self.status_item = rumps.MenuItem("", callback=None)
         self.toggle_item = rumps.MenuItem("", callback=self.on_toggle)
@@ -112,9 +125,7 @@ class WideAwake(rumps.App):
 
     def refresh_ui(self, _: rumps.Timer | None) -> None:
         """Sync menu bar icon and labels with the current system state."""
-        # Read once, use everywhere
-        is_disabled = self.sleep_disabled
-        state = AWAKE if is_disabled else ASLEEP
+        state = AWAKE if self.sleep_disabled else ASLEEP
         LOGGER.debug("current state", state=state.status_label)
 
         self.title = state.icon
@@ -126,17 +137,18 @@ class WideAwake(rumps.App):
 
     def on_toggle(self, _: rumps.MenuItem) -> None:
         """Toggle sleep prevention via AppleScript (triggers macOS auth prompt)."""
-        currently_disabled = self.sleep_disabled
-        new_val = "0" if currently_disabled else "1"
-        LOGGER.info("toggling sleep prevention", current_sleep_disabled=currently_disabled, new_value=new_val)
+        is_disabled = self.sleep_disabled
+        to_set = "0" if is_disabled else "1"
 
-        script = f'do shell script "pmset -a disablesleep {new_val}" with administrator privileges'
+        LOGGER.info("toggling sleep prevention", current_sleep_disabled=is_disabled, new_value=to_set)
+
+        script = f'do shell script "pmset -a disablesleep {to_set}" with administrator privileges'
 
         if run_applescript(script).returncode == 0:
-            LOGGER.info("sleep prevention toggled successfully", sleep_disabled=not currently_disabled)
+            LOGGER.info("sleep prevention toggled successfully", sleep_disabled=not is_disabled)
             self.refresh_ui(None)
         else:
-            LOGGER.error("failed to toggle sleep prevention", new_value=new_val)
+            LOGGER.error("failed to toggle sleep prevention", new_value=to_set)
 
 
 if __name__ == "__main__":
